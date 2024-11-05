@@ -14,15 +14,15 @@ namespace SyntaxAnalyzer
         private static readonly string[] TYPES =
             ["char", "string", "integer", "real", "double", "single", "byte"];
 
-        List<String> IDs = [];
+        Dictionary<String,String> IDs = [];
         private enum States { Start, AfterVAR, BeforeID, AfterID, BeforeFile, AfterFile, Final, Error }
 
         private void ButtonSemantic_Click(object sender, EventArgs e)
         {
             tbSemantic.Text = "Список идентификаторов:\r\n";
-            foreach (string ID in IDs)
+            foreach (var ID in IDs.OrderBy(ID => ID.Key))
             {
-                tbSemantic.Text += ID + "\r\n";
+                tbSemantic.Text += $"{ID.Key}: {ID.Value}\r\n";
             }
             btnSemantic.Enabled = false;
         }
@@ -68,7 +68,7 @@ namespace SyntaxAnalyzer
 
             if (str.Length == 0)
             {
-                rtbSyntax.Text = "Неверный вид оператора!\r\nОператор должен иметь вид:\r\nVAR <список идентификаторов> : <описание файла>;";
+                rtbSyntax.Text = "Синтаксическая ошибка!\r\nОператор должен иметь вид:\r\nVAR <список идентификаторов> : <описание файла>;";
                 return isBelong;
             }
 
@@ -77,7 +77,7 @@ namespace SyntaxAnalyzer
                 if (pos >= str.Length)
                 {
                     pos = str.Length - 1;
-                    errMessage = "Неверный вид оператора!\r\nОператор должен иметь вид:\r\nVAR <список идентификаторов> : <описание файла>;";
+                    errMessage = "Синтаксическая ошибка!\r\nОператор должен иметь вид:\r\nVAR <список идентификаторов> : <описание файла>;";
                     state = States.Error;
                 }
                 switch (state)
@@ -91,7 +91,7 @@ namespace SyntaxAnalyzer
                         else
                         {
                             state = States.Error;
-                            errMessage = "Неверный вид оператора!\r\nОператор должен начинаться с ключевого слова VAR!";
+                            errMessage = "Синтаксическая ошибка!\r\nОператор должен начинаться с ключевого слова VAR!";
                             goto case States.Error;
                         }
                         break;
@@ -105,7 +105,7 @@ namespace SyntaxAnalyzer
                         else
                         {
                             state = States.Error;
-                            errMessage = "Неверный вид оператора!\r\nПосле ключевого слова VAR должен стоять пробел!";
+                            errMessage = "Синтаксическая ошибка!\r\nПосле ключевого слова VAR должен стоять пробел!";
                             goto case States.Error;
                         }
                         break;
@@ -120,7 +120,7 @@ namespace SyntaxAnalyzer
                         {
                             ID += str[pos];
                             pos++;
-                            while (pos <= str.Length && (str[pos] >= 'a' && str[pos] <= 'z' || str[pos] >= '0' && str[pos] <= '9'))
+                            while (pos < str.Length && (str[pos] >= 'a' && str[pos] <= 'z' || str[pos] >= '0' && str[pos] <= '9'))
                             {
                                 ID += str[pos];
                                 pos++;
@@ -133,33 +133,33 @@ namespace SyntaxAnalyzer
                                     break;
                                 }
                             }
-                            if (IDs.Contains(ID))
+                            if (IDs.ContainsKey(ID))
                             {
-                                errMessage = "Неверный вид оператора!\r\nID не должны повторяться!";
+                                errMessage = "Семантическая ошибка!\r\nID не должны повторяться!";
                                 state = States.Error;
                                 goto case States.Error;
                             }
                             else if (isReserved)
                             {
-                                errMessage = "Неверный вид оператора!\r\nID не должен быть зарезервированным словом!";
+                                errMessage = "Семантическая ошибка!\r\nID не должен быть зарезервированным словом!";
                                 state = States.Error;
                                 goto case States.Error;
                             }
                             else if (ID.Length > 8)
                             {
-                                errMessage = "Неверный вид оператора!\r\nДлина ID должна быть не больше 8!";
+                                errMessage = "Семантическая ошибка!\r\nДлина ID должна быть не больше 8!";
                                 state = States.Error;
                                 goto case States.Error;
                             }
                             else
                             {
-                                IDs.Add(ID);
+                                IDs.Add(ID,"");
                                 state = States.AfterID;
                             }
                         }
                         else
                         {
-                            errMessage = "Неверный вид оператора!\r\nID должен начинаться с буквы!";
+                            errMessage = "Синтаксическая ошибка!\r\nID должен начинаться с буквы!";
                             state = States.Error;
                             goto case States.Error;
                         }
@@ -180,7 +180,7 @@ namespace SyntaxAnalyzer
                         }
                         else
                         {
-                            errMessage = "Неверный вид оператора!\r\nПосле ID может быть только запятая или двоеточие!";
+                            errMessage = "Синтаксическая ошибка!\r\nПосле ID может быть только запятая или двоеточие!";
                             state = States.Error;
                             goto case States.Error;
                         }
@@ -189,71 +189,85 @@ namespace SyntaxAnalyzer
                     case States.BeforeFile:
                         if (str[pos] == ' ') pos++;
 
-                        if (pos + 8 <= str.Length && str.Substring(pos, 8) == "file of ")
+                        if (pos + 7 <= str.Length && str.Substring(pos, 7) == "file of")
                         {
-                            pos += 8;
+                            pos += 7;
+                            bool typeFound = false;
+                            if (str[pos] == ' ') pos++;
+
                             foreach (string type in TYPES)
                             {
-                                if (pos + type.Length < str.Length && str.Substring(pos,type.Length) == type)
+                                if (pos + type.Length < str.Length && str.Substring(pos, type.Length) == type)
                                 {
+                                    typeFound = true;
                                     pos += type.Length;
                                     if (type == "string")
                                     {
-                                        int openIndex, closeIndex, number = 0;
+                                        int openIndex, closeIndex; string number = "";
                                         if (str[pos] == ' ') pos++;
 
                                         if (str.Contains('(') && str.Contains(')'))
                                         {
                                             openIndex = str.IndexOf('(', pos);
                                             closeIndex = str.IndexOf(')', pos);
-                                            if (int.TryParse(str.Substring(openIndex + 1, closeIndex - openIndex - 1), out int num))
+                                            if (int.TryParse(str.Substring(openIndex + 1, closeIndex - openIndex - 1), out _))
                                             {
-                                                number = num;
+                                                number = str.Substring(openIndex + 1, closeIndex - openIndex - 1);
                                             }
                                             else
                                             {
-                                                errMessage = "Неверный вид оператора!\r\nТип string требует наличия целой константы в скобках!";
+                                                errMessage = "Синтаксическая ошибка!\r\nТип string требует наличия целой константы в скобках!";
                                                 state = States.Error;
                                                 goto case States.Error;
                                             }
                                         }
                                         else
                                         {
-                                            errMessage = "Неверный вид оператора!\r\nТип string требует наличия целой константы в скобках!";
+                                            errMessage = "Синтаксическая ошибка!\r\nТип string требует наличия целой константы в скобках!";
                                             state = States.Error;
                                             goto case States.Error;
                                         }
-                                        if (number >= -255 && number <= 255)
+                                        if (int.Parse(number) >= 0 && int.Parse(number) <= 255)
                                         {
+                                            foreach (string value in IDs.Keys)
+                                            {
+                                                if (IDs[value] == "") IDs[value] = $"file of {type}";
+
+                                            }
                                             state = States.AfterFile;
                                             pos += 2 + number.ToString().Length;
                                             break;
                                         }
                                         else
                                         {
-                                            errMessage = "Неверный вид оператора!\r\nЧисло должно лежать в интервале (-256;256)!";
+                                            errMessage = "Семантическая ошибка!\r\nЧисло должно лежать в отрезке [0;255]!";
                                             state = States.Error;
                                             goto case States.Error;
                                         }
                                     }
                                     state = States.AfterFile;
                                 }
-                                else
-                                {
-                                    errMessage = "Неверный вид оператора!\r\nОписание файла должно содержать тип!";
-                                    state = States.Error;
-                                    goto case States.Error;
-                                }
+                            }
+                            if (!typeFound)
+                            {
+                                errMessage = "Синтаксическая ошибка!\r\nОписание файла должно содержать тип!";
+                                state = States.Error;
+                                goto case States.Error;
                             }
                         }
                         else if (pos + 4 <= str.Length && (str.Substring(pos, 4) == "text" || str.Substring(pos, 4) == "file"))
                         {
+                            foreach (string value in IDs.Keys)
+                            {
+                                if (IDs[value] == "") IDs[value] = str.Substring(pos, 4);
+
+                            }
                             pos += 4;
                             state = States.AfterFile;
                         }
                         else
                         {
-                            errMessage = "Неверный вид оператора!\r\nОписание файла должно содержать TEXT, FILE или FILE OF!";
+                            errMessage = "Синтаксическая ошибка!\r\nОписание файла должно содержать TEXT, FILE или FILE OF!";
                             state = States.Error;
                             goto case States.Error;
                         }
@@ -274,7 +288,7 @@ namespace SyntaxAnalyzer
                         }
                         else
                         {
-                            errMessage = "Неверный вид оператора!\r\nПосле описания файла может быть только запятая или точка с запятой!";
+                            errMessage = "Синтаксическая ошибка!\r\nПосле описания файла может быть только запятая или точка с запятой!";
                             state = States.Error;
                             goto case States.Error;
                         }
@@ -293,9 +307,10 @@ namespace SyntaxAnalyzer
                         rtbSyntax.Text = errMessage;
                         rtbSyntax.ForeColor = Color.Red;
                         rtbInput.Text = str;
-                        rtbInput.Select(pos, str.Length - pos);
+                        rtbInput.Select(pos, 1);
+                        int errPos = TextRenderer.MeasureText(str.Substring(0, pos + 1), Font).Width - 10;
                         Cursor.Position = new Point
-                            (Location.X + 8 + rtbInput.Location.X + rtbInput.SelectionStart*6,
+                            (Location.X + 8 + rtbInput.Location.X + errPos,
                             Location.Y + rtbInput.Location.Y + rtbInput.Height + 30);
                         rtbInput.SelectionColor = Color.Red;
                         break;

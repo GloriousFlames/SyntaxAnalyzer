@@ -48,7 +48,7 @@
             btnSyntax.Name = "btnSyntax";
             btnSyntax.Size = new Size(250, 31);
             btnSyntax.TabIndex = 0;
-            btnSyntax.Text = "Синтаксический анализ";
+            btnSyntax.Text = "Анализ";
             btnSyntax.UseVisualStyleBackColor = true;
             btnSyntax.Click += ButtonSyntax_Click;
             // 
@@ -62,7 +62,7 @@
             btnSemantic.Name = "btnSemantic";
             btnSemantic.Size = new Size(250, 31);
             btnSemantic.TabIndex = 1;
-            btnSemantic.Text = "Семантический анализ";
+            btnSemantic.Text = "Вывод семантики";
             btnSemantic.UseVisualStyleBackColor = true;
             btnSemantic.Click += ButtonSemantic_Click;
             // 
@@ -82,7 +82,7 @@
             label2.Name = "label2";
             label2.Size = new Size(558, 21);
             label2.TabIndex = 4;
-            label2.Text = "Результат синтаксического анализа:";
+            label2.Text = "Результат анализа:";
             // 
             // label3
             // 
@@ -90,7 +90,7 @@
             label3.Name = "label3";
             label3.Size = new Size(558, 21);
             label3.TabIndex = 6;
-            label3.Text = "Результат семантического анализа:";
+            label3.Text = "Вывод семантики:";
             // 
             // tbSemantic
             // 
